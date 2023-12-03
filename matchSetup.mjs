@@ -6,14 +6,20 @@ export default class matchSetup {
         { command: "ready", permission: "basic.basicMatch", description: "marks player as ready" },
         { command: "unready", permission: "basic.basicMatch", description: "marks player as not ready" },
         { command: "status", permission: "basic.basicMatch", description: "gives information on how many players are ready" },
-        { command: "forceready", permission: "admin.basicMatch", description: "skips ready" }]
+        { command: "forceready", permission: "admin.basicMatch", description: "skips ready" },
+        { command: "match", permission: "admin.basicMatch", description: "set up match" }]
     static init(server) {
         server.plugin = {}
-        server.plugin.basicMatch = {
-            readyPlayersNeeded: 2
-        }
+        server.command.on("match", (data) => {
+            server.plugin.basicMatch = {
+                readyPlayersNeeded: 2
+            }
+            loadReady(server)
+            server.sayRcon(["{pink}[basicMatch]{white} loaded match!"])
+            
+        })
 
-        loadReady(server)
+
 
     }
 }
