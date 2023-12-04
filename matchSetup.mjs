@@ -7,21 +7,43 @@ export default class matchSetup {
         { command: "unready", permission: "basic.basicMatch", description: "marks player as not ready" },
         { command: "status", permission: "basic.basicMatch", description: "gives information on how many players are ready" },
         { command: "forceready", permission: "admin.basicMatch", description: "skips ready" },
-        { command: "match", permission: "admin.basicMatch", description: "set up match" }]
+        { command: "match", permission: "admin.basicMatch", description: "set up match" },
+        { command: "switch", permission: "basic.basicMatch", description: "set up match" },
+        { command: "stay", permission: "basic.basicMatch", description: "set up match" }]
     static init(server) {
         server.plugin = {}
         server.command.on("match", (data) => {
+            const teams = {
+                team1: {
+                    name: "team1",
+                    tag: "t1",
+                    players: [],
+                    side: "CT"
+                },
+                team2: {
+                    name: "team2",
+                    tag: "t2",
+                    players: [],
+                    side: "T"
+                },
+            }
             server.plugin.basicMatch = {
                 readyPlayersNeeded: 2
             }
+            loadTeams(server, teams)
             loadReady(server)
             server.sayRcon(["{pink}[basicMatch]{white} loaded match!"])
-            
         })
-
-
-
     }
+}
+
+function loadTeams(server, teams){
+    //load warmup config
+    teams
+}
+
+function loadKnife(server){
+    //load knife config
 }
 
 function loadReady(server) {
