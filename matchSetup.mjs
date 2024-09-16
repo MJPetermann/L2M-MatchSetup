@@ -27,8 +27,8 @@ export default class matchSetup extends event.EventEmitter {
 			description: "skips ready",
 		},
 		{
-			command: "match",
-			permission: "admin.basicMatch",
+			command: "endmatch",
+			permission: "basic.basicMatch",
 			description: "set up match",
 		},
 		{
@@ -92,7 +92,7 @@ export default class matchSetup extends event.EventEmitter {
 		});
 
 		this.router.delete("/match", (req, res) => {
-			this.config.match = {};
+			this.emit("matchEnd", {name:"unkown"});
 			this.server.log("basicMatch : match deleted");
 			res.json("match deleted");
 		});
@@ -103,13 +103,8 @@ export default class matchSetup extends event.EventEmitter {
 			res.json("rcon sent");
 		});
 
-		this.server.command.on("match", (data) => {
-			if (this.config.match && this.config.match.status !== "end")
-				return this.server.sayRcon([
-					"{lightRed}[matchSetup]{green} match is ongoing!",
-				]);
-			this.config.match = {};
-			this.handleMatch(data);
+		this.server.command.on("endmatch", (data) => {
+			this.emit("matchEnd", {name:"unkown"});
 		});
 
 		this.server.on("matchEnd", (data) => this.emit("mapEnd", data));
@@ -132,6 +127,11 @@ export default class matchSetup extends event.EventEmitter {
 			this.loadReady();
 			this.once("allPlayersReady", (data) => {
 				map?.startingCT ? this.startMap() : this.startKnife();
+
+				this.server.Rcon(["tv_record " + Date.now() + "_" + map.id + "_" + this.config.match.teams[0].name + "_vs_" + this.config.match.teams[1].name + (this.config.match.maps.length > 1 ? "_" + (this.config.match.teams[0].seriesScore+this.config.match.teams[1].seriesScore) : "")]);
+				
+				this.server.log("demo-recording: " + Date.now() + "_" + map.id + "_" + this.config.match.teams[0].name + "_vs_" + this.config.match.teams[1].name + (this.config.match.maps.length > 1 ? "_" + (this.config.match.teams[0].seriesScore+this.config.match.teams[1].seriesScore) : ""))
+
 				clearInterval(this.timer);
 				this.server.once("matchScoreUpdate", () => {
 					this.loadPause();
@@ -141,6 +141,7 @@ export default class matchSetup extends event.EventEmitter {
 			this.timer = setInterval(() => {
 				this.server.sayRcon([
 					"{lightRed}[matchSetup]{green} type {purple}'!ready'{green} to ready up",
+					"{lightRed}[matchSetup]{green} open the {purple}scoreboard{green} and {red}check if you are in the right team!",
 				]);
 			}, 20000);
 		});
@@ -222,6 +223,11 @@ export default class matchSetup extends event.EventEmitter {
 				return;
 			}
 
+			this.server.Rcon([
+				"mp_teamscore_1 " + this.config.match.teams[0].seriesScore,
+				"mp_teamscore_2 " + this.config.match.teams[1].seriesScore,
+			])
+
 			this.config.match.teams[0].score = 0;
 			this.config.match.teams[1].score = 0;
 			this.server.sayRcon([
@@ -266,14 +272,14 @@ export default class matchSetup extends event.EventEmitter {
 			status: inputConfig.status || "warmup",
 			teams: [
 				{
-					name: inputConfig.teams?.team1.name || "gaming",
+					name: inputConfig.teams?.team1.name || "team1",
 					tag: inputConfig.teams?.tag || false,
 					players: inputConfig.teams?.team1.players || [],
 					seriesScore: inputConfig.teams?.team1.seriesScore || 0,
 					score: inputConfig.teams?.team1.mapScore || 0,
 				},
 				{
-					name: inputConfig.teams?.team2.name || "mj",
+					name: inputConfig.teams?.team2.name || "team2",
 					tag: inputConfig.teams?.team2.tag || false,
 					players: inputConfig.teams?.team2.players || [],
 					seriesScore: inputConfig.teams?.team2.seriesScore || 0,
@@ -286,6 +292,7 @@ export default class matchSetup extends event.EventEmitter {
 					name: map.name,
 					startingCT: map.startingCT || false,
 					score: map.score?([map.score[0], map.score[1]]) : [0, 0],
+					workshop: map.workshop || false,
 				};
 			}
 			) || false,
@@ -297,6 +304,9 @@ export default class matchSetup extends event.EventEmitter {
 		this.server.Rcon([
 			"mp_teamname_1 " + this.config.match.teams[0].name,
 			"mp_teamname_2 " + this.config.match.teams[1].name,
+			"mp_teamscore_max " + Math.round(this.config.match.maxMaps / 2),
+			"mp_teamscore_1 " + this.config.match.teams[0].seriesScore,
+			"mp_teamscore_2 " + this.config.match.teams[1].seriesScore,
 		]);
 
 		this.server.on("teamSideUpdate", updateTeamSide);
@@ -342,7 +352,6 @@ export default class matchSetup extends event.EventEmitter {
 			}
 			this.server.log("basicMatch : warmup started");
 		});
-
 		if (maps && maps[number].workshop != true) this.server.Rcon(["map " + maps[number].id]);
 		if (maps && maps[number].workshop == true) this.server.Rcon(["host_workshop_map " + maps[number].id]);
 
